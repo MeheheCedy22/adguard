@@ -1,0 +1,41 @@
+name: Daily Filter List Updater
+
+on:
+  schedule:
+    # Runs at 02:00 UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch: 
+    # This allows you to run it manually from the GitHub Actions tab
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    # Required to allow the bot to commit back to your repository
+    permissions:
+      contents: write 
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Make script executable
+        run: chmod +x update_filters.sh
+
+      - name: Run filter compilation script
+        run: ./update_filters.sh
+
+      - name: Commit and Push changes
+        run: |
+          # Configure Git for the Actions bot
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Stage the new combined file
+          git add combined_filters.txt
+          
+          # Only commit if there are actual changes
+          git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update filter lists [skip ci]"
+          
+          # Push back to the main branch
+          git push
