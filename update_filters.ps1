@@ -60,7 +60,7 @@ foreach ($url in $urls) {
             
             $allLines.Add($trimmed)
         }
-        Write-Host "  -> SUCCESS ($($lines.Count) lines) - Saved to $rawFilepath" -ForegroundColor ASCII_GREEN
+        Write-Host "  -> SUCCESS ($($lines.Count) lines) - Saved to $rawFilepath" -ForegroundColor Green
     } catch {
         Write-Host "  -> Failed to fetch ${url}: $_" -ForegroundColor Red
     }
