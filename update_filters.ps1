@@ -40,7 +40,7 @@ foreach ($url in $urls) {
 }
 
 Write-Host "Sorting and saving..." -ForegroundColor Cyan
-$sortedLines = $combinedLines | Sort-Object
+$sortedLines = $combinedLines | Sort-Object -Unique
 
 # Write to file using fast .NET method to handle massive line counts
 $outputPath = Join-Path (Get-Location) $outputFile
