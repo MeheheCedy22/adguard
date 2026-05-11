@@ -19,11 +19,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Make script executable
-        run: chmod +x update_filters.sh
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Run filter compilation script
-        run: ./update_filters.sh
+        run: python update_filters.py
 
       - name: Commit and Push changes
         run: |
@@ -31,7 +33,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Stage the new combined file
+          # Stage the new combined file and raw filters
           git add combined_filters.txt
           
           # Only commit if there are actual changes
