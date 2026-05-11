@@ -5,6 +5,7 @@ import time
 
 URLS_FILE = "urls.txt"
 OUTPUT_FILE = "combined_filters.txt"
+FILTERS_DIR = "filters"
 
 # Regex patterns to catch comments safely
 comment_pattern = re.compile(r'^!|^\[')      # Matches lines starting with ! or [
@@ -29,12 +30,23 @@ print("  AdGuard Filter Updater (Python)  ")
 print("=========================================")
 print(f"URLs to process: {len(urls)}\n")
 
-for url in urls:
+os.makedirs(FILTERS_DIR, exist_ok=True)
+
+for i, url in enumerate(urls, 1):
     print(f"Fetching: {url}")
     try:
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req) as response:
             content = response.read().decode('utf-8', errors='ignore')
+            
+            # Save raw file
+            raw_filename = url.split('/')[-1]
+            if not raw_filename or '?' in raw_filename:
+                raw_filename = f"filter_{i}.txt"
+            raw_filepath = os.path.join(FILTERS_DIR, raw_filename)
+            with open(raw_filepath, 'w', encoding='utf-8') as raw_file:
+                raw_file.write(content)
+            
             lines = content.splitlines()
             total_downloaded += len(lines)
             
@@ -57,7 +69,7 @@ for url in urls:
                 # Add valid rules
                 all_lines.append(line)
                 
-        print(f"  -> SUCCESS ({len(lines)} lines)")
+        print(f"  -> SUCCESS ({len(lines)} lines) - Saved to {raw_filepath}")
                 
     except Exception as e:
         print(f"  -> ERROR fetching {url}: {e}")

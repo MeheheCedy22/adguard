@@ -1,9 +1,14 @@
 $urlsFile = "urls.txt"
 $outputFile = "combined_filters.txt"
+$filtersDir = "filters"
 
 if (-Not (Test-Path $urlsFile)) {
     Write-Host "Error: $urlsFile not found. Please create it." -ForegroundColor Red
     exit
+}
+
+if (-Not (Test-Path $filtersDir)) {
+    New-Item -ItemType Directory -Path $filtersDir | Out-Null
 }
 
 Write-Host "========================================="
@@ -19,11 +24,21 @@ $commentCount = 0
 $emptyCount = 0
 $allLines = New-Object System.Collections.Generic.List[string]
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+$urlIndex = 1
 
 foreach ($url in $urls) {
     Write-Host "Fetching: $url"
     try {
         $content = Invoke-RestMethod -Uri $url -Headers @{"User-Agent"="Mozilla/5.0"}
+        
+        # Save raw file
+        $rawFilename = $url.Split('/')[-1]
+        if ([string]::IsNullOrWhiteSpace($rawFilename) -or $rawFilename.Contains("?")) {
+            $rawFilename = "filter_$urlIndex.txt"
+        }
+        $rawFilepath = Join-Path $filtersDir $rawFilename
+        Set-Content -Path $rawFilepath -Value $content -Encoding UTF8
+        
         $lines = $content -split "`r?`n"
         $totalDownloaded += $lines.Count
         
@@ -41,10 +56,11 @@ foreach ($url in $urls) {
             
             $allLines.Add($trimmed)
         }
-        Write-Host "  -> SUCCESS ($($lines.Count) lines)" -ForegroundColor ASCII_GREEN
+        Write-Host "  -> SUCCESS ($($lines.Count) lines) - Saved to $rawFilepath" -ForegroundColor ASCII_GREEN
     } catch {
         Write-Host "  -> Failed to fetch ${url}: $_" -ForegroundColor Red
     }
+    $urlIndex++
 }
 
 Write-Host "`nProcessing rules..." -ForegroundColor Cyan

@@ -4,6 +4,10 @@ URLS_FILE="urls.txt"
 OUTPUT_FILE="combined_filters.txt"
 TEMP_FILE="temp_filters.txt"
 RAW_FILE="raw_filters.txt"
+FILTERS_DIR="filters"
+
+# Ensure filters directory exists
+mkdir -p "$FILTERS_DIR"
 
 > "$TEMP_FILE"
 > "$RAW_FILE"
@@ -18,6 +22,7 @@ echo -e "URLs to process: $URL_COUNT\n"
 
 START_TIME=$(date +%s)
 TOTAL_DOWNLOADED=0
+URL_INDEX=1
 
 while IFS= read -r url; do
     if [[ -z "$url" || "$url" == \#* ]]; then
@@ -26,14 +31,26 @@ while IFS= read -r url; do
 
     echo "Fetching: $url"
     
+    # Generate filename
+    RAW_FILENAME=$(basename "$url")
+    if [[ -z "$RAW_FILENAME" || "$RAW_FILENAME" == *"?"* ]]; then
+        RAW_FILENAME="filter_${URL_INDEX}.txt"
+    fi
+    RAW_FILEPATH="$FILTERS_DIR/$RAW_FILENAME"
+    
     # Download raw content
     curl -sL "$url" | tr -d '\r' > temp_dl.txt
+    
+    # Save a copy to filters directory
+    cp temp_dl.txt "$RAW_FILEPATH"
+    
     LINES_DL=$(wc -l < temp_dl.txt)
     TOTAL_DOWNLOADED=$((TOTAL_DOWNLOADED + LINES_DL))
     
     cat temp_dl.txt >> "$RAW_FILE"
     
-    echo "  -> SUCCESS ($LINES_DL lines)"
+    echo "  -> SUCCESS ($LINES_DL lines) - Saved to $RAW_FILEPATH"
+    URL_INDEX=$((URL_INDEX + 1))
 
 done < "$URLS_FILE"
 rm -f temp_dl.txt
