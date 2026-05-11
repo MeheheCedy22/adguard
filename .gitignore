@@ -180,5 +180,7 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+!urls.txt
+*.txt
 combined_filters.txt
 filters/
