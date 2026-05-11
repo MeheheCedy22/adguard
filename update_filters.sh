@@ -20,8 +20,8 @@ mkdir -p "$FILTERS_DIR"
 > "$TEMP_FILE"
 > "$RAW_FILE"
 
-# Count URLs
-URL_COUNT=$(grep -cvE '^[[:space:]]*$|^#' "$URLS_FILE")
+# Count URLs (ignoring empty and comments, also handling \r)
+URL_COUNT=$(grep -cvE '^[[:space:]\r]*$|^#' "$URLS_FILE")
 echo -e "URLs to process: $URL_COUNT\n"
 
 START_TIME=$(date +%s)
@@ -29,6 +29,9 @@ TOTAL_DOWNLOADED=0
 URL_INDEX=1
 
 while IFS= read -r url; do
+    # Strip carriage return in case of Windows line endings
+    url=$(echo "$url" | tr -d '\r')
+    
     if [[ -z "$url" || "$url" == \#* ]]; then
         continue
     fi
