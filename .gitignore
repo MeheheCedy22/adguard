@@ -182,5 +182,5 @@ cython_debug/
 
 !urls.txt
 *.txt
-combined_filters.txt
+!combined_filters.txt
 filters/
