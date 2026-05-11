@@ -6,15 +6,19 @@ TEMP_FILE="temp_filters.txt"
 RAW_FILE="raw_filters.txt"
 FILTERS_DIR="filters"
 
-# Ensure filters directory exists
+echo "========================================="
+echo "  AdGuard Filter Updater (Bash)  "
+echo "========================================="
+
+# Clean existing filters folder
+if [ -d "$FILTERS_DIR" ]; then
+    echo "Cleaning up existing '$FILTERS_DIR' folder..."
+    rm -rf "$FILTERS_DIR"
+fi
 mkdir -p "$FILTERS_DIR"
 
 > "$TEMP_FILE"
 > "$RAW_FILE"
-
-echo "========================================="
-echo "  AdGuard Filter Updater (Bash)  "
-echo "========================================="
 
 # Count URLs
 URL_COUNT=$(grep -cvE '^[[:space:]]*$|^#' "$URLS_FILE")
@@ -31,12 +35,12 @@ while IFS= read -r url; do
 
     echo "Fetching: $url"
     
-    # Generate filename
+    # Generate filename with index prefix to avoid overwriting
     RAW_FILENAME=$(basename "$url")
     if [[ -z "$RAW_FILENAME" || "$RAW_FILENAME" == *"?"* ]]; then
-        RAW_FILENAME="filter_${URL_INDEX}.txt"
+        RAW_FILENAME="filter.txt"
     fi
-    RAW_FILEPATH="$FILTERS_DIR/$RAW_FILENAME"
+    RAW_FILEPATH="$FILTERS_DIR/${URL_INDEX}_${RAW_FILENAME}"
     
     # Download raw content
     curl -sL "$url" | tr -d '\r' > temp_dl.txt

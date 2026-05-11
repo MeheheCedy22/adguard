@@ -7,13 +7,16 @@ if (-Not (Test-Path $urlsFile)) {
     exit
 }
 
-if (-Not (Test-Path $filtersDir)) {
-    New-Item -ItemType Directory -Path $filtersDir | Out-Null
-}
-
 Write-Host "========================================="
 Write-Host "  AdGuard Filter Updater (PowerShell)  "
 Write-Host "========================================="
+
+# Clean existing filters tracking
+if (Test-Path $filtersDir) {
+    Write-Host "Cleaning up existing '$filtersDir' folder..." -ForegroundColor Yellow
+    Remove-Item -Path $filtersDir -Recurse -Force
+}
+New-Item -ItemType Directory -Path $filtersDir | Out-Null
 
 $urls = Get-Content $urlsFile | Where-Object { $_ -match "\S" -and $_ -notmatch "^#" }
 Write-Host "URLs to process: $($urls.Count)`n"
@@ -31,12 +34,13 @@ foreach ($url in $urls) {
     try {
         $content = Invoke-RestMethod -Uri $url -Headers @{"User-Agent"="Mozilla/5.0"}
         
-        # Save raw file
+        # Save raw file, prefixed by index
         $rawFilename = $url.Split('/')[-1]
         if ([string]::IsNullOrWhiteSpace($rawFilename) -or $rawFilename.Contains("?")) {
-            $rawFilename = "filter_$urlIndex.txt"
+            $rawFilename = "filter.txt"
         }
-        $rawFilepath = Join-Path $filtersDir $rawFilename
+        $safeFilename = "${urlIndex}_${rawFilename}"
+        $rawFilepath = Join-Path $filtersDir $safeFilename
         Set-Content -Path $rawFilepath -Value $content -Encoding UTF8
         
         $lines = $content -split "`r?`n"

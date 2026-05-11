@@ -2,6 +2,7 @@ import urllib.request
 import re
 import os
 import time
+import shutil
 
 URLS_FILE = "urls.txt"
 OUTPUT_FILE = "combined_filters.txt"
@@ -30,6 +31,10 @@ print("  AdGuard Filter Updater (Python)  ")
 print("=========================================")
 print(f"URLs to process: {len(urls)}\n")
 
+# Clear existing filters directory to prevent duplicates/old files
+if os.path.exists(FILTERS_DIR):
+    print(f"Cleaning up existing '{FILTERS_DIR}' folder...")
+    shutil.rmtree(FILTERS_DIR)
 os.makedirs(FILTERS_DIR, exist_ok=True)
 
 for i, url in enumerate(urls, 1):
@@ -39,11 +44,14 @@ for i, url in enumerate(urls, 1):
         with urllib.request.urlopen(req) as response:
             content = response.read().decode('utf-8', errors='ignore')
             
-            # Save raw file
+            # Save raw file, prefix with index to ensure no duplicate filenames
             raw_filename = url.split('/')[-1]
             if not raw_filename or '?' in raw_filename:
-                raw_filename = f"filter_{i}.txt"
-            raw_filepath = os.path.join(FILTERS_DIR, raw_filename)
+                raw_filename = "filter.txt"
+            
+            safe_filename = f"{i}_{raw_filename}"
+            raw_filepath = os.path.join(FILTERS_DIR, safe_filename)
+            
             with open(raw_filepath, 'w', encoding='utf-8') as raw_file:
                 raw_file.write(content)
             
