@@ -1,6 +1,7 @@
 import urllib.request
 import re
 import os
+import time
 
 URLS_FILE = "urls.txt"
 OUTPUT_FILE = "combined_filters.txt"
@@ -9,8 +10,12 @@ OUTPUT_FILE = "combined_filters.txt"
 comment_pattern = re.compile(r'^!|^\[')      # Matches lines starting with ! or [
 single_hash_pattern = re.compile(r'^#[^#@]') # Matches lines with single # (preserves ## and #@#)
 
-# Using a set automatically and instantly removes duplicates
-combined_lines = set() 
+# Using a list first to count total lines, then set for deduplication
+all_lines = []
+comment_count = 0
+empty_count = 0
+total_downloaded = 0
+start_time = time.time()
 
 if not os.path.exists(URLS_FILE):
     print(f"Error: {URLS_FILE} not found. Please create it and add your URLs.")
@@ -19,39 +24,73 @@ if not os.path.exists(URLS_FILE):
 with open(URLS_FILE, 'r') as f:
     urls = [line.strip() for line in f if line.strip() and not line.startswith('#')]
 
-print("Downloading and processing filter lists...")
+print("=========================================")
+print("  AdGuard Filter Updater (Python)  ")
+print("=========================================")
+print(f"URLs to process: {len(urls)}\n")
 
 for url in urls:
     print(f"Fetching: {url}")
     try:
-        # User-Agent added because some raw text hosts block empty agents
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req) as response:
             content = response.read().decode('utf-8', errors='ignore')
+            lines = content.splitlines()
+            total_downloaded += len(lines)
             
-            for line in content.splitlines():
+            for line in lines:
                 line = line.strip()
                 
-                # Skip empty lines, standard comments, and single-hash comments
+                # Count and skip empty lines
                 if not line:
+                    empty_count += 1
                     continue
+                # Count and skip standard comments
                 if comment_pattern.match(line):
+                    comment_count += 1
                     continue
+                # Count and skip single-hash comments
                 if single_hash_pattern.match(line):
+                    comment_count += 1
                     continue
                 
-                # Add to set (automatically drops duplicates)
-                combined_lines.add(line)
+                # Add valid rules
+                all_lines.append(line)
+                
+        print(f"  -> SUCCESS ({len(lines)} lines)")
                 
     except Exception as e:
-        print(f"  -> Error fetching {url}: {e}")
+        print(f"  -> ERROR fetching {url}: {e}")
 
-print("Sorting lists...")
-sorted_lines = sorted(combined_lines)
+print("\nProcessing rules...")
+total_valid = len(all_lines)
+unique_lines = set(all_lines)
+total_unique = len(unique_lines)
+duplicates_removed = total_valid - total_unique
+
+print("Sorting rules...")
+sorted_lines = sorted(unique_lines)
 
 print(f"Saving to {OUTPUT_FILE}...")
 with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
     for line in sorted_lines:
         f.write(line + '\n')
 
-print("Success! Final list compiled.")
+end_time = time.time()
+execution_time = end_time - start_time
+
+print("\n=========================================")
+print("              STATISTICS                 ")
+print("=========================================")
+print(f"Total URLs Processed   : {len(urls)}")
+print(f"Total Lines Downloaded : {total_downloaded:,}")
+print(f"Comments Removed       : {comment_count:,}")
+print(f"Empty Lines Removed    : {empty_count:,}")
+print(f"Valid Rules Found      : {total_valid:,}")
+print(f"Duplicates Removed     : {duplicates_removed:,}")
+print(f"Final Rules Count      : {total_unique:,}")
+if total_valid > 0:
+    space_saved = ((total_valid - total_unique) / total_valid) * 100
+    print(f"Deduplication Savings  : {space_saved:.2f}%")
+print(f"Execution Time         : {execution_time:.2f} seconds")
+print("=========================================")

@@ -6,44 +6,81 @@ if (-Not (Test-Path $urlsFile)) {
     exit
 }
 
-Write-Host "Reading URLs..." -ForegroundColor Cyan
-$urls = Get-Content $urlsFile | Where-Object { $_ -match "\S" -and $_ -notmatch "^#" }
+Write-Host "========================================="
+Write-Host "  AdGuard Filter Updater (PowerShell)  "
+Write-Host "========================================="
 
-# A HashSet is used instead of a standard array to instantly eliminate duplicates
-$combinedLines = New-Object System.Collections.Generic.HashSet[string]
+$urls = Get-Content $urlsFile | Where-Object { $_ -match "\S" -and $_ -notmatch "^#" }
+Write-Host "URLs to process: $($urls.Count)`n"
+
+# Statistics variables
+$totalDownloaded = 0
+$commentCount = 0
+$emptyCount = 0
+$allLines = New-Object System.Collections.Generic.List[string]
+$stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
 foreach ($url in $urls) {
     Write-Host "Fetching: $url"
     try {
-        # Download the raw text
         $content = Invoke-RestMethod -Uri $url -Headers @{"User-Agent"="Mozilla/5.0"}
         $lines = $content -split "`r?`n"
+        $totalDownloaded += $lines.Count
         
         foreach ($line in $lines) {
             $trimmed = $line.Trim()
             
-            # Skip empty lines
-            if ([string]::IsNullOrWhiteSpace($trimmed)) { continue }
+            if ([string]::IsNullOrWhiteSpace($trimmed)) {
+                $emptyCount++
+                continue
+            }
+            if ($trimmed -match "^!|^\[" -or $trimmed -match "^#[^#@]") {
+                $commentCount++
+                continue
+            }
             
-            # Skip standard comments (! or [)
-            if ($trimmed -match "^!|^\[") { continue }
-            
-            # Skip single '#' comments (preserves '##' and '#@#')
-            if ($trimmed -match "^#[^#@]") { continue }
-            
-            # Add to HashSet (duplicates are ignored automatically)
-            [void]$combinedLines.Add($trimmed)
+            $allLines.Add($trimmed)
         }
+        Write-Host "  -> SUCCESS ($($lines.Count) lines)" -ForegroundColor ASCII_GREEN
     } catch {
         Write-Host "  -> Failed to fetch ${url}: $_" -ForegroundColor Red
     }
 }
 
-Write-Host "Sorting and saving..." -ForegroundColor Cyan
-$sortedLines = $combinedLines | Sort-Object -Unique
+Write-Host "`nProcessing rules..." -ForegroundColor Cyan
+$totalValid = $allLines.Count
 
-# Write to file using fast .NET method to handle massive line counts
+# HashSet to remove duplicates
+$uniqueLines = New-Object System.Collections.Generic.HashSet[string]
+foreach ($line in $allLines) {
+    [void]$uniqueLines.Add($line)
+}
+
+$totalUnique = $uniqueLines.Count
+$duplicatesRemoved = $totalValid - $totalUnique
+
+Write-Host "Sorting rules..." -ForegroundColor Cyan
+$sortedLines = $uniqueLines | Sort-Object
+
+Write-Host "Saving to $outputFile..." -ForegroundColor Cyan
 $outputPath = Join-Path (Get-Location) $outputFile
 [System.IO.File]::WriteAllLines($outputPath, $sortedLines)
 
-Write-Host "Success! Saved to $outputFile" -ForegroundColor Green
+$stopwatch.Stop()
+
+Write-Host "`n========================================="
+Write-Host "              STATISTICS                 "
+Write-Host "========================================="
+Write-Host "Total URLs Processed   : $($urls.Count)"
+Write-Host "Total Lines Downloaded : $totalDownloaded"
+Write-Host "Comments Removed       : $commentCount"
+Write-Host "Empty Lines Removed    : $emptyCount"
+Write-Host "Valid Rules Found      : $totalValid"
+Write-Host "Duplicates Removed     : $duplicatesRemoved"
+Write-Host "Final Rules Count      : $totalUnique"
+if ($totalValid -gt 0) {
+    $spaceSaved = (($totalValid - $totalUnique) / $totalValid) * 100
+    Write-Host "Deduplication Savings  : $($spaceSaved.ToString('F2'))%"
+}
+Write-Host "Execution Time         : $($stopwatch.Elapsed.TotalSeconds.ToString('F2')) seconds"
+Write-Host "========================================="
